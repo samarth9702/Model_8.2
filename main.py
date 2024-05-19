@@ -47,12 +47,7 @@ def chat():
     return jsonify({'message': response}), 200
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=5000, help='Specify the port number')
-    args = parser.parse_args()
-
-    port_num = args.port
     print("Starting Llama bot...\n This may take a while.")
     prepareLlamaBot()
     print(f"App running on port {port_num}")
-    app.run(port=port_num)
+    app.run(debug=True, port=os.getenv("PORT", default=5000))
