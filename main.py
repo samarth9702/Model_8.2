@@ -15,8 +15,14 @@ os.environ['GRADIENT_WORKSPACE_ID'] = workspace_id
 
 def prepareLlamaBot():
     global base_model
-    gradient = Gradient()
-    base_model = gradient.get_base_model(base_model_slug="llama3-8b-chat")
+    try:
+        gradient = Gradient()
+        base_model = gradient.get_base_model(base_model_slug="llama3-8b-chat")
+        if base_model is None:
+            raise ValueError("Base model not initialized")
+        print("Base model initialized successfully")
+    except Exception as e:
+        print(f"Error initializing base model: {e}")
 
 @app.route('/')
 def index():
@@ -24,7 +30,10 @@ def index():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    global base_model, user_message, chat_history
+    global base_model
+    if base_model is None:
+        return jsonify({'error': 'Model adapter not initialized'}), 500
+
     data = request.get_json()
 
     if 'userMessage' not in data or not isinstance(data['userMessage'], str):
@@ -42,12 +51,20 @@ def chat():
 
     QUERY = f"[INST]GIVEN THE CHAT HISTORY:\n{chat_history_str}\nAND THE LATEST MESSAGE FROM USER:\n{user_message}\nGIVE A RESPONSE TO THE USER\n[/INST]"
 
-    response = base_model.complete(query=QUERY, max_generated_token_count=500).generated_output
-
-    return jsonify({'message': response}), 200
+    try:
+        response = base_model.complete(query=QUERY, max_generated_token_count=500).generated_output
+        return jsonify({'message': response}), 200
+    except Exception as e:
+        print(f"Error during model completion: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     print("Starting Llama bot...\n This may take a while.")
     prepareLlamaBot()
+    if base_model is not None:
+        print("Base model is ready.")
+    else:
+        print("Failed to initialize base model.")
+    port_num = int(os.getenv("PORT", default=5000))
     print(f"App running on port {port_num}")
-    app.run(debug=True, port=os.getenv("PORT", default=5000))
+    app.run(debug=True, port=port_num)
